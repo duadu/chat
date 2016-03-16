@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>helloWorld</title>
+	<style type="text/css">
+		.bg {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: #000;
+		}
+		.login {
+			width: 400px;
+			height: 0;
+			border-radius: 50%;
+			margin: 200px auto;
+			padding: 200px 0;
+			text-align: center;
+			background: #fedb43;
+			box-shadow: 0px 0 100px 50px #666;
+			opacity: 0.8;
+		}
+		#iptLogin {
+			width: 150px;
+			height: 30px;
+			border: 0;
+			border-radius: 5px;
+		}
+		#iptLogin::-webkit-input-placeholder {
+			text-align: center;
+		}
+		#btnLogin {
+			width: 50px;
+			line-height: 30px;
+			border-radius: 5px;
+			margin: 0 0 0 5px;
+			border: 0;
+			padding: 0;
+			background: #fff;
+		}
+		.send {
+			width: 300px;
+		}
+		#ipt {
+			width: 230px;
+		}
+		#receive {
+			width: 300px;
+			height: 500px;
+			border: 1px solid blue;
+			margin: 20px 0 0 0;
+		}
+		.img {
+			width: 80%;
+		}
+		#emojis {
+			width: 120%;
+		}
+	</style>
+</head>
+<body>
+	<div class="bg">
+		<div class="login">
+			<input type="text" id="iptLogin" placeholder="输入你的昵称">
+			<button id="btnLogin">登录</button>
+		</div>
+	</div>
+	
+	<div class="chat">
+		<div class="send">
+			<input type="text" id="ipt">
+			<input type="button" value="发送" id="btn">
+			<input type="file" value="图片" id="btnImg">
+			<input type="color" id="btnColor">
+			<input type="button" value="表情" id="btnEmoji">
+			<div id="emojis">
+				
+			</div>
+		</div>
+		<div id="receive">
+			
+		</div>
+		<div class="showUser">
+			
+		</div>
+	</div>
+	<script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
+	<script type="text/javascript" src="js/index.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="text/javascript">
+		// var socket = io.connect();
+		// var ipt = document.getElementById('ipt');
+		// var btn = document.getElementById('btn');
+		// var text = document.getElementById('receive');
+		// btn.onclick = function () {
+		// 	socket.emit('message', ipt.value);  //发送一个名为message的事件
+			
+		// }
+		// socket.on('message0', function (data0) {
+		// 		text.innerHTML = data0 + '<br/>';
+		// 	})
+		
+
+		window.onload = function () {   // 在页面加载好后执行
+			var hello = new Hello();   // 实例并初始化hello程序
+			hello.init();
+		};
+		var Hello = function () {   // 定义hello类
+			this.socket = null;
+		};
+		Hello.prototype = {
+			init: function () {
+				var btnLogin = document.getElementById('btnLogin');
+				var iptLogin = document.getElementById('iptLogin');
+				var ipt = document.getElementById('ipt');
+				var btn = document.getElementById('btn');
+				var p = document.createElement('p');
+				console.log(this);
+				var that = this;
+				this.socket = io.connect();   // 监听socket的connect事件，此事件表示连接已经建立
+				this.socket.on('connect', function () {
+					function loginBtn() {
+						var nick = iptLogin.value;
+						if (nick.trim().length != 0) {
+							that.socket.emit('login', nick);   // 将昵称发送到服务器
+						} else {
+							iptLogin.focus();
+						}
+					}
+					btnLogin.addEventListener('click', loginBtn, false);
+					// 登录时按回车键登录
+					iptLogin.onkeydown = function (e) {
+						var e = e || event;
+						var keyNum;
+						if(window.event) {       // IE/Chrome
+						    keyNum = e.keyCode
+						}
+						else if(e.which) {        // Netscape/Firefox/Opera
+						    keyNum = e.which
+						}
+						if (keyNum === 13 || keyNum === 108) {
+							loginBtn();
+						}
+					}
+				});
+				this.socket.on('nickExisted', function () {
+					alert('该昵称已存在');
+				});
+				this.socket.on('loginSuccess', function () {
+					document.title = 'hello - ' + iptLogin.value;
+					document.getElementsByClassName('bg')[0].style.display = 'none';
+					ipt.focus();
+				});
+				// 系统发送消息
+				this.socket.on('system', function (nick, type, userNum, users) {
+					p.textContent = users + '--当前在线人数' + (userNum + 1);
+					document.getElementsByClassName('showUser')[0].appendChild(p);
+					var systemMsg = nick + type;
+					console.log(that);
+					that.displayMsg('system', systemMsg, 'red');
+				});
+				function sendMsgBtn() {
+					var btnColor = document.getElementById('btnColor');
+					var color = btnColor.value;
+					var iptMsg = ipt.value;
+					ipt.value = '';
+					if (!iptMsg.trim()) {
+						console.log('没发送成功');
+						ipt.focus();
+					} else {
+						that.socket.emit('sendMsg', iptMsg, color);
+						that.displayMsg('我', iptMsg, color);
+					}
+				}
+				btn.addEventListener('click', sendMsgBtn, false);
+				// 发送消息时按回车键登录
+				ipt.onkeydown = function (e) {
+					var e = e || event;
+					var keyNum;
+					if(window.event) {       // IE/Chrome
+					    keyNum = e.keyCode
+					}
+					else if(e.which) {        // Netscape/Firefox/Opera
+					    keyNum = e.which
+					}
+					if (keyNum === 13 || keyNum === 108) {
+						sendMsgEnter();
+					}
+				}
+				this.socket.on('newMsg', function (user, msg, color) {
+					that.displayMsg(user, msg, color);
+				});
+				// 图片发送
+				var btnImg = document.getElementById('btnImg');
+				btnImg.addEventListener('change', function () {
+					console.log(this);
+					if (this.files.length) {
+						var file = this.files[0];
+						var reader = new FileReader();
+						if (!reader) {
+							displayMsg('system', '不支持你发的图片', 'red');
+							return false;
+						}
+						console.log(reader);
+						reader.onload = function (e) {
+							console.log(e.target);
+							that.socket.emit('img', e.target.result);
+							that.displayImg('我', e.target.result);
+						}
+						reader.readAsDataURL(file);
+					}
+				});
+				this.socket.on('newImg', function (user, imgUrl) {
+					that.displayImg(user, imgUrl);
+				});
+				this.initEmoji();
+				btnEmoji.addEventListener('click', function (e) {
+					emojis.style.display = 'block';
+					e.stopPropagation();   // 事件停止冒泡
+				}, false);
+				emojis.addEventListener('click', function (e) {
+					var index = e.target.className;
+					ipt.value = ipt.value + '[emoji:' + index + ']';
+					ipt.focus();
+				}, false);
+
+			},
+			// 消息展示形式
+			displayMsg: function (fromUser, msg, color) {
+				var receive = document.getElementById('receive');
+				var msgText = document.createElement('p');
+				var date = new Date().toTimeString().substr(0, 8);
+				// 插入表情
+				var reg = /\[emoji:\d+\]/g;
+				if (reg.test(msg)) {
+					msg = this.showEmoji(msg);
+				}
+				msgText.style.color = color || '#000';   // 默认黑色
+				msgText.innerHTML = fromUser + '<span class="sendTime">(' + date + '):</span>' + msg;
+				receive.appendChild(msgText);
+				receive.scrollTop = receive.scrollHeight;
+			},
+			// 图片展示形式
+			displayImg: function (fromUser, imgUrl, color) {
+				var receive = document.getElementById('receive');
+				var msgText = document.createElement('p');
+				var date = new Date().toTimeString().substr(0, 8);
+				msgText.style.color = color || '#000';   // 默认黑色
+				msgText.innerHTML = fromUser + '<span class="sendTime">(' + date + '):</span>' + '<img class="img" src="' + imgUrl + '" />';
+				receive.appendChild(msgText);
+				receive.scrollTop = receive.scrollHeight;
+			},
+			// 表情
+			initEmoji: function () {
+				var btnEmoji = document.getElementById('btnEmoji');
+				var emojis = document.getElementById('emojis');
+				for (var i = 0; i < 38; i++) {
+					var emoji = document.createElement('img');
+					emoji.src = 'img/emoji/' + i + '.gif';
+					emoji.className = i;
+					emojis.appendChild(emoji);
+				}
+			},
+			showEmoji: function (msg) {
+				var match, result = msg;
+				var reg = /\[emoji:\d+\]/g;
+				var emojiIndex;
+				emojiNum = emojis.children.length;
+				while (match = reg.exec(msg)) {   // ["[emoji:24]", index: 13, input: "[emoji:21]xvd[emoji:24]"]
+					emojiIndex = match[0].slice(7, -1);   // 取出表情代号
+					if (emojiIndex > emojiNum) {
+						result = result.replace(match[0], '[x]');
+					} else {
+						var emojiHtml = document.getElementsByClassName(emojiIndex)[0].outerHTML;
+						result = result.replace(match[0], emojiHtml);
+					}
+					console.log(result);
+				}
+				return result;
+			}
+		}
+	</script>
+</body>
+</html>
